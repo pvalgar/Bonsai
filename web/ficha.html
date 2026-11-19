@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bonsai · Ficha</title>
+<style>
+  :root { --verde:#2f5d3a; --verde-claro:#e8f0e9; --borde:#cfd6d0; --fondo:#f6f7f5; --error:#a12626; --ok:#1f6b34; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.4 system-ui, sans-serif; background:var(--fondo); color:#222; }
+  header { background:var(--verde); color:#fff; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  header h1 { margin:0; font-size:18px; }
+  header button { background:transparent; color:#fff; border:1px solid #fff8; }
+  button { font:inherit; padding:7px 14px; border-radius:6px; border:1px solid var(--verde); background:var(--verde); color:#fff; cursor:pointer; }
+  button.sec { background:#fff; color:var(--verde); }
+  button:disabled { opacity:.5; cursor:default; }
+  input, select, textarea { font:inherit; width:100%; padding:7px 9px; border:1px solid var(--borde); border-radius:6px; background:#fff; }
+  textarea { min-height:70px; resize:vertical; }
+  label { display:block; font-size:13px; color:#444; margin-bottom:3px; }
+  .hidden { display:none !important; }
+
+  #login { max-width:340px; margin:60px auto; background:#fff; padding:22px; border-radius:10px; border:1px solid var(--borde); }
+  #login h2 { margin-top:0; }
+  #login .campo { margin-bottom:12px; }
+
+  #app { display:grid; grid-template-columns:280px 1fr; gap:16px; padding:16px; max-width:1100px; margin:0 auto; }
+  @media (max-width:760px){ #app { grid-template-columns:1fr; } }
+  aside { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:10px; align-self:start; }
+  aside .barra { display:flex; gap:8px; margin-bottom:8px; }
+  #lista { list-style:none; margin:8px 0 0; padding:0; max-height:65vh; overflow:auto; }
+  #lista li { padding:7px 9px; border-radius:6px; cursor:pointer; display:flex; gap:8px; }
+  #lista li:hover { background:var(--verde-claro); }
+  #lista li.sel { background:var(--verde-claro); font-weight:600; }
+  #lista li.baja { color:#888; }
+  #lista .cod { min-width:2.2em; color:var(--verde); font-weight:600; }
+
+  main { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:18px; }
+  main h2 { margin:0 0 14px; font-size:18px; }
+  fieldset { border:1px solid var(--borde); border-radius:8px; margin:0 0 16px; padding:12px 14px 4px; }
+  legend { padding:0 6px; color:var(--verde); font-weight:600; }
+  .rejilla { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:12px; }
+  .ancho { grid-column:1 / -1; }
+  .check { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .check input { width:auto; }
+  .acciones { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #msg { font-size:14px; }
+  #msg.error { color:var(--error); }
+  #msg.ok { color:var(--ok); }
+  .nota { font-size:12px; color:#666; margin-top:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌳 Bonsai · Ficha</h1>
+  <div><span id="usuario"></span> <button id="btn-salir" class="hidden">Salir</button></div>
+</header>
+
+<!-- ===== Inicio de sesión ===== -->
+<section id="login">
+  <h2>Iniciar sesión</h2>
+  <form id="form-login">
+    <div class="campo"><label for="email">Correo</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="campo"><label for="pass">Contraseña</label><input id="pass" type="password" autocomplete="current-password" required></div>
+    <button type="submit">Entrar</button>
+    <p id="login-msg" class="error" style="color:#a12626"></p>
+  </form>
+</section>
+
+<!-- ===== Aplicación ===== -->
+<div id="app" class="hidden">
+  <aside>
+    <div class="barra">
+      <button id="btn-nuevo" type="button">+ Nuevo bonsai</button>
+    </div>
+    <input id="filtro" type="search" placeholder="Buscar por código o nombre">
+    <ul id="lista"></ul>
+  </aside>
+
+  <main>
+    <h2 id="titulo">Nuevo bonsai</h2>
+    <form id="form-ficha" novalidate>
+
+      <fieldset>
+        <legend>Identificación</legend>
+        <div class="rejilla">
+          <div><label for="codigo">Código (nº de etiqueta) *</label><input id="codigo" type="number" min="1" step="1" required></div>
+          <div><label for="nombre">Nombre *</label><input id="nombre" type="text" required></div>
+          <div class="ancho">
+            <label for="especie">Especie *</label>
+            <select id="especie"></select>
+          </div>
+          <div class="ancho hidden" id="bloque-especie-nueva">
+            <fieldset style="margin:0 0 12px">
+              <legend>Nueva especie</legend>
+              <div class="rejilla">
+                <div><label>Reino *</label><input id="ne-reino" value="Plantae"></div>
+                <div><label>Filo (división) *</label><input id="ne-filo" placeholder="Magnoliophyta"></div>
+                <div><label>Clase *</label><input id="ne-clase" placeholder="Magnoliopsida"></div>
+                <div><label>Orden *</label><input id="ne-orden" placeholder="Rosales"></div>
+                <div><label>Familia *</label><input id="ne-familia" placeholder="Ulmaceae"></div>
+                <div><label>Género *</label><input id="ne-genero" placeholder="Ulmus"></div>
+                <div><label>Especie (epíteto) *</label><input id="ne-especie" placeholder="parvifolia"></div>
+                <div><label>Variedad / cultivar</label><input id="ne-variedad"></div>
+                <div><label>Nombre común</label><input id="ne-comun" placeholder="Olmo chino"></div>
+              </div>
+              <div class="acciones" style="margin-bottom:12px">
+                <button type="button" id="btn-guardar-especie">Guardar especie</button>
+                <button type="button" id="btn-cancelar-especie" class="sec">Cancelar</button>
+                <span id="msg-especie" class="nota"></span>
+              </div>
+            </fieldset>
+          </div>
+          <div>
+            <label for="estilo">Estilo</label>
+            <input id="estilo" list="estilos" placeholder="moyogi, chokkan…">
+            <datalist id="estilos">
+              <option value="Chokkan"><option value="Moyogi"><option value="Shakan"><option value="Kengai">
+              <option value="Han-kengai"><option value="Bunjin"><option value="Fukinagashi">
+              <option value="Sokan"><option value="Kabudachi"><option value="Yose-ue">
+              <option value="Ishitsuki"><option value="Netsunagari"><option value="Hokidachi">
+            </datalist>
+          </div>
+          <div>
+            <label for="zona">Zona actual</label>
+            <select id="zona"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Origen y adquisición</legend>
+        <div class="rejilla">
+          <div><label for="origen">Origen *</label><select id="origen"></select></div>
+          <div><label for="fecha_adquisicion">Fecha de adquisición</label><input id="fecha_adquisicion" type="date"></div>
+          <div><label for="lugar_adquisicion">Lugar de adquisición</label><input id="lugar_adquisicion"></div>
+          <div><label for="precio">Precio (€)</label><input id="precio" type="number" min="0" step="0.01"></div>
+        </div>
+        <div class="rejilla hidden" id="bloque-madre">
+          <div>
+            <label for="madre">Árbol madre</label>
+            <select id="madre"></select>
+          </div>
+          <div>
+            <label for="madre_descripcion">Descripción del árbol madre</label>
+            <input id="madre_descripcion" placeholder="Si no está en la base de datos">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Notas</legend>
+        <div class="rejilla"><div class="ancho"><textarea id="notas"></textarea></div></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Estado</legend>
+        <div class="check"><input id="activa" type="checkbox" checked><label for="activa" style="margin:0">Bonsai activo (en mi colección)</label></div>
+        <div class="rejilla hidden" id="bloque-baja">
+          <div><label for="fecha_baja">Fecha de baja *</label><input id="fecha_baja" type="date"></div>
+          <div><label for="tipo_baja">Tipo de baja *</label><select id="tipo_baja"></select></div>
+          <div class="ancho"><label for="detalle_baja">Qué ocurrió</label><textarea id="detalle_baja"></textarea></div>
+        </div>
+      </fieldset>
+
+      <div class="acciones">
+        <button type="submit" id="btn-guardar">Guardar</button>
+        <button type="button" id="btn-cancelar" class="sec">Descartar cambios</button>
+        <span id="msg"></span>
+      </div>
+    </form>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Solo la URL y la clave publishable (pública). NUNCA pegar aquí la clave secret / service_role.
+const SUPABASE_URL = 'https://rglkiuycwnvillvrmnfs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Uc9OdPhfDrgAR0hGg2k39w_VbsJpC1L';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const estado = { bonsais: [], especies: [], zonas: [], origenes: [], tiposBaja: [], editandoId: null, zonaActual: null };
+const ORIGENES_CON_MADRE = ['Acodo', 'Esqueje', 'Injerto'];
+
+// ---------- utilidades ----------
+function hoy() { return new Date().toLocaleDateString('sv-SE'); } // AAAA-MM-DD en hora local
+function vacioANull(v) { v = (v ?? '').toString().trim(); return v === '' ? null : v; }
+function msg(texto, tipo) { const m = $('msg'); m.textContent = texto || ''; m.className = tipo || ''; }
+function opcion(valor, texto) { const o = document.createElement('option'); o.value = valor; o.textContent = texto; return o; }
+function rellenar(select, opciones, vacio) {
+  select.replaceChildren();
+  if (vacio !== undefined) select.appendChild(opcion('', vacio));
+  opciones.forEach(([v, t]) => select.appendChild(opcion(v, t)));
+}
+function traducirError(e) {
+  const t = (e.message || '') + ' ' + (e.details || '');
+  if (e.code === '23505') {
+    if (t.includes('codigo')) return 'Ya existe un bonsai con ese código.';
+    if (t.includes('nombre')) return 'Ya existe un bonsai con ese nombre.';
+    if (t.includes('especies_uq')) return 'Esa especie (o variedad) ya existe.';
+    if (t.includes('bonsai_zona')) return 'Conflicto con la zona actual del bonsai.';
+    return 'Valor duplicado: ' + t;
+  }
+  if (e.code === '23514') {
+    if (t.includes('baja_coherente')) return 'La baja necesita fecha y tipo (o ambos vacíos si está activo).';
+    return 'Un valor no cumple las restricciones de la base de datos: ' + t;
+  }
+  if (e.code === '42501') return 'Sin permiso: la sesión ha caducado. Vuelve a entrar.';
+  return e.message || 'Error desconocido';
+}
+
+// ---------- sesión ----------
+async function mostrarSegunSesion(sesion) {
+  const dentro = !!sesion;
+  $('login').classList.toggle('hidden', dentro);
+  $('app').classList.toggle('hidden', !dentro);
+  $('btn-salir').classList.toggle('hidden', !dentro);
+  $('usuario').textContent = dentro ? sesion.user.email : '';
+  if (dentro) await cargarTodo();
+}
+$('form-login').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  $('login-msg').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pass').value });
+  if (error) $('login-msg').textContent = 'No se pudo entrar: ' + error.message;
+});
+$('btn-salir').addEventListener('click', () => sb.auth.signOut());
+sb.auth.onAuthStateChange((_ev, sesion) => { mostrarSegunSesion(sesion); });
+sb.auth.getSession().then(({ data }) => mostrarSegunSesion(data.session));
+
+// ---------- carga de datos ----------
+async function cargarTodo() {
+  const [bon, esp, zon, ori, baj] = await Promise.all([
+    sb.from('bonsais').select('*').order('codigo'),
+    sb.from('especies').select('*').order('nombre_cientifico'),
+    sb.from('zonas').select('id,nombre').order('nombre'),
+    sb.from('origenes').select('nombre').order('nombre'),
+    sb.from('tipos_baja').select('nombre').order('nombre'),
+  ]);
+  const fallo = [bon, esp, zon, ori, baj].find(r => r.error);
+  if (fallo) { msg('Error al cargar datos: ' + traducirError(fallo.error), 'error'); return; }
+  estado.bonsais = bon.data; estado.especies = esp.data; estado.zonas = zon.data;
+  estado.origenes = ori.data.map(o => o.nombre); estado.tiposBaja = baj.data.map(o => o.nombre);
+  rellenarCatalogos();
+  pintarLista();
+  if (estado.editandoId && estado.bonsais.some(b => b.id === estado.editandoId)) await abrirBonsai(estado.editandoId);
+  else nuevoBonsai();
+}
+function etiquetaEspecie(e) {
+  let t = e.nombre_cientifico;
+  if (e.variedad_cultivar) t += " '" + e.variedad_cultivar + "'";
+  if (e.nombre_comun) t += ' (' + e.nombre_comun + ')';
+  return t;
+}
+function rellenarCatalogos(seleccionarEspecie) {
+  const prev = seleccionarEspecie || $('especie').value;
+  rellenar($('especie'), estado.especies.map(e => [e.id, etiquetaEspecie(e)]), '— elegir especie —');
+  $('especie').appendChild(opcion('__nueva__', '＋ Nueva especie…'));
+  if (prev && prev !== '__nueva__') $('especie').value = prev;
+  rellenar($('zona'), estado.zonas.map(z => [z.id, z.nombre]), '— sin zona —');
+  rellenar($('origen'), estado.origenes.map(o => [o, o]), '— elegir origen —');
+  rellenar($('tipo_baja'), estado.tiposBaja.map(o => [o, o]), '— elegir tipo —');
+  rellenarMadres();
+}
+function rellenarMadres() {
+  const prev = $('madre').value;
+  const posibles = estado.bonsais.filter(b => b.id !== estado.editandoId);
+  rellenar($('madre'), posibles.map(b => [b.id, b.codigo + ' · ' + b.nombre]), '— no está en la base de datos —');
+  $('madre').value = prev;
+}
+
+// ---------- lista ----------
+function pintarLista() {
+  const q = $('filtro').value.trim().toLowerCase();
+  const ul = $('lista'); ul.replaceChildren();
+  estado.bonsais
+    .filter(b => !q || String(b.codigo).includes(q) || b.nombre.toLowerCase().includes(q))
+    .forEach(b => {
+      const li = document.createElement('li');
+      if (!b.activa) li.classList.add('baja');
+      if (b.id === estado.editandoId) li.classList.add('sel');
+      const cod = document.createElement('span'); cod.className = 'cod'; cod.textContent = b.codigo;
+      const nom = document.createElement('span'); nom.textContent = b.nombre + (b.activa ? '' : ' (baja)');
+      li.append(cod, nom);
+      li.addEventListener('click', () => abrirBonsai(b.id));
+      ul.appendChild(li);
+    });
+}
+$('filtro').addEventListener('input', pintarLista);
+
+// ---------- formulario ----------
+function actualizarVisibilidad() {
+  $('bloque-madre').classList.toggle('hidden', !ORIGENES_CON_MADRE.includes($('origen').value));
+  $('bloque-baja').classList.toggle('hidden', $('activa').checked);
+  $('bloque-especie-nueva').classList.toggle('hidden', $('especie').value !== '__nueva__');
+}
+['origen', 'activa', 'especie'].forEach(id => $(id).addEventListener('change', actualizarVisibilidad));
+
+function limpiarFormulario() {
+  $('form-ficha').reset();
+  $('activa').checked = true;
+  estado.zonaActual = null;
+  msg('');
+  actualizarVisibilidad();
+}
+function nuevoBonsai() {
+  estado.editandoId = null;
+  limpiarFormulario();
+  rellenarMadres();
+  $('titulo').textContent = 'Nuevo bonsai';
+  const max = estado.bonsais.reduce((m, b) => Math.max(m, b.codigo), 0);
+  $('codigo').value = max + 1;
+  pintarLista();
+}
+$('btn-nuevo').addEventListener('click', nuevoBonsai);
+
+async function abrirBonsai(id) {
+  const b = estado.bonsais.find(x => x.id === id);
+  if (!b) return;
+  estado.editandoId = id;
+  limpiarFormulario();
+  rellenarMadres();
+  $('titulo').textContent = 'Editar: ' + b.codigo + ' · ' + b.nombre;
+  $('codigo').value = b.codigo;
+  $('nombre').value = b.nombre;
+  $('especie').value = b.especie_id;
+  $('estilo').value = b.estilo ?? '';
+  $('origen').value = b.origen;
+  $('madre').value = b.bonsai_madre_id ?? '';
+  $('madre_descripcion').value = b.madre_descripcion ?? '';
+  $('lugar_adquisicion').value = b.lugar_adquisicion ?? '';
+  $('fecha_adquisicion').value = b.fecha_adquisicion ?? '';
+  $('precio').value = b.precio ?? '';
+  $('notas').value = b.notas ?? '';
+  $('activa').checked = b.activa;
+  $('fecha_baja').value = b.fecha_baja ?? '';
+  $('tipo_baja').value = b.tipo_baja ?? '';
+  $('detalle_baja').value = b.detalle_baja ?? '';
+  actualizarVisibilidad();
+  pintarLista();
+  const { data, error } = await sb.from('bonsai_zona').select('id,zona_id,desde').eq('bonsai_id', id).is('hasta', null).maybeSingle();
+  if (error) { msg('No se pudo leer la zona actual: ' + traducirError(error), 'error'); return; }
+  estado.zonaActual = data;
+  $('zona').value = data ? data.zona_id : '';
+}
+$('btn-cancelar').addEventListener('click', () => { estado.editandoId ? abrirBonsai(estado.editandoId) : nuevoBonsai(); });
+
+// ---------- nueva especie ----------
+$('btn-cancelar-especie').addEventListener('click', () => { $('especie').value = ''; actualizarVisibilidad(); });
+$('btn-guardar-especie').addEventListener('click', async () => {
+  const campos = { reino: 'ne-reino', filo: 'ne-filo', clase: 'ne-clase', orden: 'ne-orden', familia: 'ne-familia', genero: 'ne-genero', especie: 'ne-especie' };
+  const fila = {};
+  for (const [col, id] of Object.entries(campos)) {
+    fila[col] = vacioANull($(id).value);
+    if (!fila[col]) { $('msg-especie').textContent = 'Faltan campos obligatorios (*).'; return; }
+  }
+  fila.variedad_cultivar = vacioANull($('ne-variedad').value);
+  fila.nombre_comun = vacioANull($('ne-comun').value);
+  const { data, error } = await sb.from('especies').insert(fila).select().single();
+  if (error) { $('msg-especie').textContent = traducirError(error); return; }
+  estado.especies.push(data);
+  estado.especies.sort((a, b) => a.nombre_cientifico.localeCompare(b.nombre_cientifico));
+  rellenarCatalogos(data.id);
+  $('especie').value = data.id;
+  ['ne-filo', 'ne-clase', 'ne-orden', 'ne-familia', 'ne-genero', 'ne-especie', 'ne-variedad', 'ne-comun'].forEach(i => $(i).value = '');
+  $('msg-especie').textContent = '';
+  actualizarVisibilidad();
+});
+
+// ---------- guardar ----------
+function recogerFicha() {
+  const activa = $('activa').checked;
+  const precio = vacioANull($('precio').value);
+  return {
+    codigo: parseInt($('codigo').value, 10),
+    nombre: $('nombre').value.trim(),
+    especie_id: $('especie').value,
+    estilo: vacioANull($('estilo').value),
+    origen: $('origen').value,
+    bonsai_madre_id: ORIGENES_CON_MADRE.includes($('origen').value) ? vacioANull($('madre').value) : null,
+    madre_descripcion: ORIGENES_CON_MADRE.includes($('origen').value) ? vacioANull($('madre_descripcion').value) : null,
+    lugar_adquisicion: vacioANull($('lugar_adquisicion').value),
+    fecha_adquisicion: vacioANull($('fecha_adquisicion').value),
+    precio: precio === null ? null : Number(precio),
+    notas: vacioANull($('notas').value),
+    activa,
+    fecha_baja: activa ? null : vacioANull($('fecha_baja').value),
+    tipo_baja: activa ? null : vacioANull($('tipo_baja').value),
+    detalle_baja: activa ? null : vacioANull($('detalle_baja').value),
+  };
+}
+function validar(f) {
+  if (!Number.isInteger(f.codigo) || f.codigo <= 0) return 'El código debe ser un número entero mayor que 0.';
+  if (!f.nombre) return 'Falta el nombre.';
+  if (!f.especie_id || f.especie_id === '__nueva__') return 'Elige una especie (o guarda la nueva).';
+  if (!f.origen) return 'Elige el origen.';
+  if (f.precio !== null && !(f.precio >= 0)) return 'El precio no es válido.';
+  if (!f.activa && (!f.fecha_baja || !f.tipo_baja)) return 'Para dar de baja hacen falta la fecha y el tipo de baja.';
+  if (f.fecha_baja && f.fecha_adquisicion && f.fecha_baja < f.fecha_adquisicion) return 'La fecha de baja no puede ser anterior a la de adquisición.';
+  return null;
+}
+async function guardarZona(bonsaiId) {
+  const nueva = $('zona').value;
+  const actual = estado.zonaActual;
+  if (actual && actual.zona_id === nueva) return;
+  const dia = hoy();
+  if (actual) {
+    if (nueva && actual.desde === dia) {                  // mismo día: se corrige en lugar de crear historial
+      const { error } = await sb.from('bonsai_zona').update({ zona_id: nueva }).eq('id', actual.id);
+      if (error) throw error;
+      return;
+    }
+    const { error } = await sb.from('bonsai_zona').update({ hasta: dia }).eq('id', actual.id);  // cerrar primero (índice de zona única)
+    if (error) throw error;
+  }
+  if (nueva) {
+    const { error } = await sb.from('bonsai_zona').insert({ bonsai_id: bonsaiId, zona_id: nueva, desde: dia });
+    if (error) throw error;
+  }
+}
+$('form-ficha').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  msg('');
+  const ficha = recogerFicha();
+  const problema = validar(ficha);
+  if (problema) { msg(problema, 'error'); return; }
+  $('btn-guardar').disabled = true;
+  try {
+    const q = estado.editandoId
+      ? sb.from('bonsais').update(ficha).eq('id', estado.editandoId)
+      : sb.from('bonsais').insert(ficha);
+    const { data, error } = await q.select().single();
+    if (error) { msg(traducirError(error), 'error'); return; }
+    try { await guardarZona(data.id); }
+    catch (e) { msg('Ficha guardada, pero falló la zona: ' + traducirError(e), 'error'); estado.editandoId = data.id; await cargarTodo(); return; }
+    estado.editandoId = data.id;
+    await cargarTodo();
+    msg('Guardado ✔', 'ok');
+  } finally {
+    $('btn-guardar').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
